@@ -1,0 +1,24 @@
+columns:
+  - name: comic_num
+    data_type: integer
+    nullable: false
+
+  - name: title
+    data_type: text
+    nullable: false
+
+  - name: image_url
+    data_type: text
+    nullable: false
+
+  - name: alt_text
+    data_type: text
+    nullable: true
+
+  - name: transcript
+    data_type: text
+    nullable: true
+
+  - name: published_date
+    data_type: date
+    nullable: true

@@ -1,0 +1,25 @@
+raw_xkcd:
+  source:
+    ingest_type: xkcd
+    mode: incr
+    watermark_column: comic_num
+
+  destination:
+    publish_type: postgres
+    mode: upsert
+
+  schema:
+    mode: explicit
+    definition: ../schemas/xkcd.yaml
+
+  loading:
+    id_cols:
+      - comic_num
+    batch_size: 100
+
+  data_quality:
+    enabled: true
+    expectations:
+      - column: comic_num
+        rule: min
+        value: 1
