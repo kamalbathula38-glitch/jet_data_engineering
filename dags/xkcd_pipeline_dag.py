@@ -58,8 +58,8 @@ def _new_comic_available() -> bool:
 
 
 def _run_ingestion() -> None:
-    from framework.base_ingestion import BaseIngestion
-    from framework.config_parser import load_config
+    from ingestion.base_ingestion import BaseIngestion
+    from ingestion.config_parser import load_config
 
     _load_env()
     config_path = os.path.join(PROJECT_ROOT, "config", "ingestions", "xkcd.yaml")

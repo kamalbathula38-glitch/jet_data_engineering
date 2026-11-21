@@ -3,7 +3,7 @@ import time
 
 import requests
 
-from framework.exceptions import ExtractionError
+from ingestion.exceptions import ExtractionError
 from utils.retry import retry_with_backoff
 
 

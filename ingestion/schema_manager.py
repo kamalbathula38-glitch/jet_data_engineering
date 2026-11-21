@@ -3,7 +3,7 @@ from pathlib import Path
 
 import yaml
 
-from framework.exceptions import SchemaError
+from ingestion.exceptions import SchemaError
 
 
 TYPE_MAP = {

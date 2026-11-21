@@ -8,7 +8,7 @@ See [docs/xkcd/architecture.md](docs/xkcd/architecture.md) for the end-to-end pi
 
 - Python 3.11+
 - A PostgreSQL database - run one locally via Docker (no account needed, see below) or point at your own instance (e.g. Neon)
-- Docker + Docker Compose, if you want the local Postgres and/or the Airflow automation (not required for a bare `python main.py` run against your own database)
+- Docker + Docker Compose, if you want the local Postgres and/or the Airflow automation (not required for a bare `python ingest.py` run against your own database)
 
 ## 2. Setup
 
@@ -32,7 +32,7 @@ To use your own Postgres instance instead (e.g. Neon), set `DATABASE_URL` in `.e
 From the project root:
 
 ```bash
-python main.py --config config/ingestions/xkcd.yaml
+python ingest.py --config config/ingestions/xkcd.yaml
 ```
 
 The first incremental run fetches the latest comic because the target table has no watermark yet. Later runs fetch comic numbers greater than the maximum `comic_num` already stored. The destination uses `comic_num` as its primary key and performs an upserts.
@@ -46,7 +46,7 @@ Change `source.mode` from `incr` to `hist` in the YAML to fetch comics from comi
 To (re)ingest a specific comic number range without touching the YAML, pass `--backfill-start` and `--backfill-end`:
 
 ```bash
-python main.py --config config/ingestions/xkcd.yaml --backfill-start 100 --backfill-end 150
+python ingest.py --config config/ingestions/xkcd.yaml --backfill-start 100 --backfill-end 150
 ```
 
 This overrides `source.mode` to `backfill` for that run only. The end of the range is clamped to the latest published comic. Because the destination mode is `upsert`, backfilling a range that overlaps existing rows is safe and simply updates them.

@@ -1,4 +1,4 @@
-from framework.data_validator import CustomDataValidator
+from ingestion.data_validator import CustomDataValidator
 
 
 def test_empty_expectations_pass():

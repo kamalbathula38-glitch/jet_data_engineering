@@ -4,7 +4,7 @@ import re
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from framework.exceptions import ConfigurationError
+from ingestion.exceptions import ConfigurationError
 
 
 class StrictConfig(BaseModel):

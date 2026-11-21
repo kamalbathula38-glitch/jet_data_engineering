@@ -3,8 +3,8 @@ import os
 import psycopg
 from psycopg import sql
 
-from framework.exceptions import PublishingError
-from framework.schema_manager import INGESTED_AT_COLUMN, TYPE_MAP
+from ingestion.exceptions import PublishingError
+from ingestion.schema_manager import INGESTED_AT_COLUMN, TYPE_MAP
 
 
 class PostgresPublisher:

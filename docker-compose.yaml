@@ -9,7 +9,7 @@ x-airflow-common: &airflow-common
     # pins) - fine for this local demo, not something to run in production.
     _PIP_ADDITIONAL_REQUIREMENTS: "requests psycopg[binary] pydantic PyYAML python-dotenv dbt-core dbt-postgres"
     JET_PROJECT_ROOT: /opt/jet_data_engineering
-    # Used by framework/base_ingestion.py & handlers/postgres.py inside this
+    # Used by ingestion/base_ingestion.py & handlers/postgres.py inside this
     # container. python-dotenv's load_dotenv() never overrides an already-set
     # env var, so this takes precedence over whatever DATABASE_URL is in .env.
     DATABASE_URL: postgresql://xkcd:xkcd@warehouse:5432/xkcd

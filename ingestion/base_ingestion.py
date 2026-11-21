@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 
-from framework.data_validator import CustomDataValidator, DataQualityError
-from framework.exceptions import FrameworkError
-from framework.schema_manager import INGESTED_AT_COLUMN, SchemaManager
+from ingestion.data_validator import CustomDataValidator, DataQualityError
+from ingestion.exceptions import IngestionError
+from ingestion.schema_manager import INGESTED_AT_COLUMN, SchemaManager
 from registries.native_ingestions import get_ingestion_handler
 from registries.native_publishers import get_publisher_handler
 
@@ -117,7 +117,7 @@ class BaseIngestion:
                 "watermark_before_run": str(watermark) if watermark is not None else None,
                 "data_quality": quality_summary,
             }
-        except FrameworkError:
+        except IngestionError:
             raise
         except Exception as exc:
-            raise FrameworkError(f"Ingestion failed for '{self.table_name}': {exc}") from exc
+            raise IngestionError(f"Ingestion failed for '{self.table_name}': {exc}") from exc

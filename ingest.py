@@ -3,8 +3,8 @@ import json
 
 from dotenv import load_dotenv
 
-from framework.base_ingestion import BaseIngestion
-from framework.config_parser import load_config
+from ingestion.base_ingestion import BaseIngestion
+from ingestion.config_parser import load_config
 
 
 def main():

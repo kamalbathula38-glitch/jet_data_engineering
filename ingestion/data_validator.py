@@ -1,4 +1,4 @@
-from framework.exceptions import DataQualityError
+from ingestion.exceptions import DataQualityError
 
 
 class CustomDataValidator:
