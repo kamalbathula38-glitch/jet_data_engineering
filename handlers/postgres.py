@@ -208,7 +208,9 @@ class PostgresPublisher:
                 # actually changed, so re-ingesting unchanged rows is a no-op.
                 guard_clause = sql.SQL(" WHERE ({}) IS DISTINCT FROM ({})").format(
                     sql.SQL(", ").join(
-                        sql.Identifier(column) for column in guard_cols
+                        # Qualified with the table name: Postgres treats a bare
+                        # column reference here as ambiguous.
+                        sql.Identifier(table_name, column) for column in guard_cols
                     ),
                     sql.SQL(", ").join(
                         sql.SQL("EXCLUDED.{}").format(sql.Identifier(column))

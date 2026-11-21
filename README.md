@@ -5,7 +5,8 @@ A small YAML-driven ingestion framework with an XKCD source handler and PostgreS
 ## 1. Requirements
 
 - Python 3.11+
-- A PostgreSQL database (Neon is supported)
+- A PostgreSQL database - run one locally via Docker (no account needed, see below) or point at your own instance (e.g. Neon)
+- Docker + Docker Compose, if you want the local Postgres and/or the Airflow automation (not required for a bare `python main.py` run against your own database)
 
 ## 2. Setup
 
@@ -16,7 +17,13 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Set `DATABASE_URL` in `.env` to your Neon connection string. Keep `.env` out of Git.
+`.env.example` already points `DATABASE_URL` at a local Postgres container, so just bring it up:
+
+```bash
+docker compose up -d warehouse
+```
+
+To use your own Postgres instance instead (e.g. Neon), set `DATABASE_URL` in `.env` to its connection string. Keep `.env` out of Git either way.
 
 ## 3. Run the first ingestion
 
@@ -63,17 +70,26 @@ cd dbt_project/jet_analytics
 dbt build
 ```
 
-`dbt build` runs the models and all tests in one command, failing loudly if any test fails.
+`dbt build` runs the models and all tests in one command, failing loudly if any test fails. This uses your own `~/.dbt/profiles.yml` when run directly on the host, same as any normal dbt project.
 
 ## 8. Automation (Airflow)
 
 `dags/xkcd_pipeline_dag.py` runs the end-to-end pipeline on XKCD's own publishing schedule (Monday/Wednesday/Friday). Since comics aren't posted at a fixed time, it polls every 30 minutes for up to 24 hours for a `comic_num` beyond what's already stored, then runs ingestion followed by `dbt build` (transform + tests).
 
-Airflow is deliberately not in `requirements.txt` - its pinned dependencies tend to conflict with this project's own stack, so install it separately (`pip install apache-airflow`) in its own environment. To wire the DAG up:
+The whole stack - Airflow (webserver, scheduler, its own metadata DB) and the local Postgres warehouse - is defined in `docker-compose.yaml`:
 
-1. Set the `JET_PROJECT_ROOT` environment variable in the Airflow worker's environment to this repository's absolute path.
-2. Make sure that environment has a working `.env` and `dbt` on `PATH`.
-3. Copy or symlink `dags/xkcd_pipeline_dag.py` into Airflow's configured `dags_folder`.
+```bash
+docker compose up -d
+```
+
+This pulls the official Airflow image and installs this project's lightweight runtime deps plus `dbt-core`/`dbt-postgres` into it via `_PIP_ADDITIONAL_REQUIREMENTS` (an Airflow-documented dev/test-only convenience - fine here, not for production). Airflow itself is deliberately not in `requirements.txt`, since its pinned dependencies tend to conflict with this project's own stack.
+
+Once it's up:
+
+1. Open http://localhost:8080 (user `admin`, password `admin`).
+2. Unpause `xkcd_ingestion_pipeline`.
+
+Inside the Airflow containers, `DATABASE_URL` and `DBT_PROFILES_DIR` are set directly in `docker-compose.yaml` to point at the `warehouse` service and `dbt_project/jet_analytics/profiles.yml` - regardless of what's in your own `.env`/`~/.dbt/profiles.yml`. That means triggering the DAG always runs against the local Dockerized warehouse, while running things directly on the host uses whatever you've configured there.
 
 ## 9. Current scope and limitations
 

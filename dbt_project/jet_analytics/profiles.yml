@@ -1,0 +1,16 @@
+jet_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      # Defaults match the host machine talking to `docker compose up -d
+      # warehouse` via its published port. docker-compose.yaml overrides
+      # DBT_HOST/DBT_PORT to warehouse:5432 for dbt running inside the
+      # Airflow container, which reaches it over the Docker network instead.
+      host: "{{ env_var('DBT_HOST', 'localhost') }}"
+      port: "{{ env_var('DBT_PORT', '5433') | int }}"
+      user: "{{ env_var('DBT_USER', 'xkcd') }}"
+      pass: "{{ env_var('DBT_PASS', 'xkcd') }}"
+      dbname: "{{ env_var('DBT_DBNAME', 'xkcd') }}"
+      schema: public
+      threads: 1
