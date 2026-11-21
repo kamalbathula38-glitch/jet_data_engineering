@@ -252,20 +252,64 @@ class PostgresPublisher:
         schema: dict,
     ) -> dict:
         """
-        Drop the existing table, recreate it and load fresh records.
+        Load fresh records into a table already reset by reset_table().
+        Called once per chunk - must not itself touch the table's schema, or
+        a multi-chunk run would wipe out every earlier chunk's rows.
         """
+        if not records:
+            return {"inserted": 0}
 
+        try:
+            columns = [
+                column["name"]
+                for column in schema["columns"]
+            ]
+
+            insert_statement = sql.SQL(
+                "INSERT INTO {} ({}) VALUES ({})"
+            ).format(
+                sql.Identifier(table_name),
+                sql.SQL(", ").join(
+                    sql.Identifier(column)
+                    for column in columns
+                ),
+                sql.SQL(", ").join(
+                    sql.Placeholder()
+                    for _ in columns
+                ),
+            )
+
+            params = [
+                tuple(record[column] for column in columns)
+                for record in records
+            ]
+
+            with self._connect() as conn:
+                with conn.cursor() as cursor:
+                    cursor.executemany(insert_statement, params)
+
+            return {"inserted": len(records)}
+
+        except Exception as exc:
+            raise PublishingError(
+                f"Insert into '{table_name}' failed: {exc}"
+            ) from exc
+
+    def reset_table(self, table_name: str, schema: dict) -> None:
+        """
+        Drop and recreate the destination table, without a primary key.
+        Called once per run, before any chunk is published - truncate() only
+        inserts, so a multi-chunk run doesn't wipe out its own earlier chunks.
+        """
         try:
             with self._connect() as conn:
                 with conn.cursor() as cursor:
-
                     cursor.execute(
                         sql.SQL("DROP TABLE IF EXISTS {}").format(
                             sql.Identifier(table_name)
                         )
                     )
 
-                    # Recreate table without a primary key.
                     definitions = []
 
                     for column in schema["columns"]:
@@ -289,39 +333,7 @@ class PostgresPublisher:
 
                     cursor.execute(create_statement)
 
-                    if records:
-                        columns = [
-                            column["name"]
-                            for column in schema["columns"]
-                        ]
-
-                        insert_statement = sql.SQL(
-                            "INSERT INTO {} ({}) VALUES ({})"
-                        ).format(
-                            sql.Identifier(table_name),
-                            sql.SQL(", ").join(
-                                sql.Identifier(column)
-                                for column in columns
-                            ),
-                            sql.SQL(", ").join(
-                                sql.Placeholder()
-                                for _ in columns
-                            ),
-                        )
-
-                        params = [
-                            tuple(record[column] for column in columns)
-                            for record in records
-                        ]
-
-                        cursor.executemany(
-                            insert_statement,
-                            params
-                        )
-
-            return {"inserted": len(records)}
-
         except Exception as exc:
             raise PublishingError(
-                f"Truncate and reload of '{table_name}' failed: {exc}"
+                f"Could not reset table '{table_name}': {exc}"
             ) from exc

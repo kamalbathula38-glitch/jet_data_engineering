@@ -72,6 +72,11 @@ class BaseIngestion:
                 self.table_name, schema, self.config.loading.id_cols
             )
 
+            if self.config.destination.mode == "truncate":
+                # Reset once, up front - each chunk below only inserts, so a
+                # multi-chunk run doesn't wipe out its own earlier chunks.
+                self.publisher.reset_table(self.table_name, schema)
+
             watermark = None
             if self.config.source.mode == "incr":
                 watermark = self.publisher.get_watermark(
