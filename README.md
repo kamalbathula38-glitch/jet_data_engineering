@@ -2,6 +2,8 @@
 
 A small YAML-driven ingestion framework with an XKCD source handler and PostgreSQL publisher.
 
+See [docs/xkcd/architecture.md](docs/xkcd/architecture.md) for the end-to-end pipeline, [docs/xkcd/erd.md](docs/xkcd/erd.md) for the data warehouse model (ER diagram), and [docs/xkcd/data-quality.md](docs/xkcd/data-quality.md) for the data quality checks.
+
 ## 1. Requirements
 
 - Python 3.11+
