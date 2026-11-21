@@ -8,7 +8,7 @@ flowchart LR
     subgraph ingestion["Ingestion (Python)"]
         direction LR
         API["XKCD API<br/>external API, source system<br/>one record per comic<br/>natural key: comic_num"]
-        EXTRACT["extract<br/>ingestion framework<br/>modes: incr / hist / backfill"]
+        EXTRACT["extract<br/>ingestion framework<br/>modes: incr / hist / backfill<br/>streamed + validated + published<br/>in batch_size chunks"]
         RAW[("raw_xkcd<br/>landing table (stored)<br/>raw, untransformed source rows")]
         API --> EXTRACT --> RAW
     end
@@ -45,3 +45,10 @@ behavior, and the Airflow DAG (`dags/xkcd_pipeline_dag.py`) that runs this whole
 end to end on XKCD's publishing schedule. `stg_xkcd` through `fact_comic_metrics` are
 dbt models; see [erd.md](erd.md) for the resulting data warehouse model and
 [data-quality.md](data-quality.md) for the checks defined at each stage.
+
+`extract` doesn't fetch every comic into memory before writing anything: it streams
+records out one at a time, and the ingestion framework groups them into
+`loading.batch_size` chunks, validating and publishing each chunk before moving on to
+the next. A failure partway through a large `hist`/`backfill` run only costs the current
+chunk - everything validated and published before it is already safely in `raw_xkcd`,
+and re-running is safe since the destination mode is `upsert`.

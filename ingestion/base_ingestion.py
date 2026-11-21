@@ -5,6 +5,7 @@ from ingestion.exceptions import IngestionError
 from ingestion.schema_manager import INGESTED_AT_COLUMN, SchemaManager
 from registries.native_ingestions import get_ingestion_handler
 from registries.native_publishers import get_publisher_handler
+from utils.chunking import chunked
 
 class BaseIngestion:
     def __init__(self, parsed_config: dict):
@@ -83,37 +84,57 @@ class BaseIngestion:
                 watermark=watermark,
             )
 
-            ingested_at = datetime.now(timezone.utc)
-            for record in records:
-                record[INGESTED_AT_COLUMN] = ingested_at
-
             id_cols = self.config.loading.id_cols
+            batch_size = self.config.loading.batch_size
 
-            if id_cols:
-                self.validate_unique_keys(records, id_cols)
+            extracted_count = 0
+            published_count = 0
+            quality_summary = {
+                "enabled": self.config.data_quality.enabled,
+                "total_expectations": 0,
+                "passed": 0,
+                "failed": 0,
+                "results": [],
+            }
 
-            self.schema_manager.validate_records(records, schema)
+            # Extracted, validated, and published one batch_size chunk at a
+            # time - rather than extracting everything into memory before any
+            # of it is validated or written - so a failure partway through a
+            # large hist/backfill run doesn't lose chunks that already landed.
+            for chunk in chunked(records, batch_size):
+                ingested_at = datetime.now(timezone.utc)
+                for record in chunk:
+                    record[INGESTED_AT_COLUMN] = ingested_at
 
-            quality_summary = {"enabled": False, "total_expectations": 0}
-            if self.config.data_quality.enabled:
-                quality_summary = self.validator.validate(
-                    records, self.config.data_quality.expectations
+                if id_cols:
+                    self.validate_unique_keys(chunk, id_cols)
+
+                self.schema_manager.validate_records(chunk, schema)
+
+                if self.config.data_quality.enabled:
+                    chunk_quality = self.validator.validate(
+                        chunk, self.config.data_quality.expectations
+                    )
+                    quality_summary["total_expectations"] += chunk_quality["total_expectations"]
+                    quality_summary["passed"] += chunk_quality["passed"]
+                    quality_summary["failed"] += chunk_quality["failed"]
+                    quality_summary["results"].extend(chunk_quality["results"])
+
+                publish_summary = self.publisher.publish(
+                    table_name=self.table_name,
+                    records=chunk,
+                    schema=schema,
+                    mode=self.config.destination.mode,
+                    id_cols=id_cols,
                 )
-                quality_summary["enabled"] = True
 
-            publish_summary = self.publisher.publish(
-                table_name=self.table_name,
-                records=records,
-                schema=schema,
-                mode=self.config.destination.mode,
-                id_cols=id_cols,
-                batch_size=self.config.loading.batch_size
-            )
+                extracted_count += len(chunk)
+                published_count += publish_summary["inserted_or_updated"]
 
             return {
                 "table": self.table_name,
-                "extracted": len(records),
-                "published": publish_summary["inserted_or_updated"],
+                "extracted": extracted_count,
+                "published": published_count,
                 "watermark_before_run": str(watermark) if watermark is not None else None,
                 "data_quality": quality_summary,
             }

@@ -105,15 +105,11 @@ class PostgresPublisher:
         schema: dict,
         mode: str,
         id_cols: list[str] | None = None,
-        batch_size: int = 100,
     ) -> dict:
         """
         Dispatch records to upsert or truncate publishing.
         """
         id_cols = id_cols or []
-
-        if batch_size <= 0:
-            raise PublishingError("batch_size must be greater than zero")
 
         if mode == "upsert":
             if not id_cols:
@@ -126,7 +122,6 @@ class PostgresPublisher:
                 records=records,
                 schema=schema,
                 id_cols=id_cols,
-                batch_size=batch_size,
             )
 
         if mode == "truncate":
@@ -139,7 +134,6 @@ class PostgresPublisher:
                 table_name=table_name,
                 records=records,
                 schema=schema,
-                batch_size=batch_size,
             )
 
         raise PublishingError(
@@ -152,7 +146,6 @@ class PostgresPublisher:
         records: list[dict],
         schema: dict,
         id_cols: list[str],
-        batch_size: int,
     ) -> dict:
         """
         Insert records or update existing records using id_cols
@@ -236,23 +229,16 @@ class PostgresPublisher:
             + conflict_action
         )
 
-        count = 0
-
         try:
             with self._connect() as conn:
                 with conn.cursor() as cursor:
-                    for offset in range(0, len(records), batch_size):
-                        batch = records[offset: offset + batch_size]
+                    params = [
+                        tuple(record[column] for column in columns)
+                        for record in records
+                    ]
+                    cursor.executemany(statement, params)
 
-                        params = [
-                            tuple(record[column] for column in columns)
-                            for record in batch
-                        ]
-
-                        cursor.executemany(statement, params)
-                        count += len(batch)
-
-            return {"inserted_or_updated": count}
+            return {"inserted_or_updated": len(records)}
 
         except Exception as exc:
             raise PublishingError(
@@ -264,7 +250,6 @@ class PostgresPublisher:
         table_name: str,
         records: list[dict],
         schema: dict,
-        batch_size: int,
     ) -> dict:
         """
         Drop the existing table, recreate it and load fresh records.
@@ -324,18 +309,15 @@ class PostgresPublisher:
                             ),
                         )
 
-                        for offset in range(0, len(records), batch_size):
-                            batch = records[offset:offset + batch_size]
+                        params = [
+                            tuple(record[column] for column in columns)
+                            for record in records
+                        ]
 
-                            params = [
-                                tuple(record[column] for column in columns)
-                                for record in batch
-                            ]
-
-                            cursor.executemany(
-                                insert_statement,
-                                params
-                            )
+                        cursor.executemany(
+                            insert_statement,
+                            params
+                        )
 
             return {"inserted": len(records)}
 

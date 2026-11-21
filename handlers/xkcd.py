@@ -64,7 +64,7 @@ class XKCDIngestion:
             raise ExtractionError("Could not retrieve the latest XKCD comic")
         return self._normalise(payload)
 
-    def extract(self, mode: str, config: dict, watermark=None) -> list[dict]:
+    def extract(self, mode: str, config: dict, watermark=None):
         latest_payload = self._get_json(f"{self.BASE_URL}/info.0.json")
         if not latest_payload:
             raise ExtractionError("Could not retrieve the latest XKCD comic")
@@ -83,16 +83,11 @@ class XKCDIngestion:
         else:
             raise ExtractionError(f"Unsupported XKCD extraction mode: {mode}")
 
-        if start_num > end_num:
-            return []
-
-        records = []
         for comic_num in range(start_num, end_num + 1):
             payload = latest_payload if comic_num == latest_num else self._get_json(
                 f"{self.BASE_URL}/{comic_num}/info.0.json"
             )
             if payload is not None:
-                records.append(self._normalise(payload))
+                yield self._normalise(payload)
             if self.request_delay:
                 time.sleep(self.request_delay)
-        return records

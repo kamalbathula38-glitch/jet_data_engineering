@@ -5,6 +5,14 @@ before they're published (schema + `data_quality.expectations` in
 `config/ingestions/xkcd.yaml`), and dbt tests validate the warehouse model on every
 `dbt build` - including the one the Airflow DAG runs automatically.
 
+Ingestion-layer checks run per `loading.batch_size` chunk, not across the whole run (see
+[architecture.md](architecture.md)). That doesn't weaken `not_null`/`min`/`max` - those
+give the same verdict whether checked per-record, per-chunk, or across everything. It
+does mean a `unique` expectation only catches a duplicate within the same chunk, not one
+split across two chunks. For XKCD specifically that gap can't actually be hit: `extract`
+builds `comic_num` from a plain, non-repeating range, so no duplicate can occur
+regardless of chunking.
+
 | Table | Column | Check | Catches |
 |---|---|---|---|
 | `raw_xkcd` | `comic_num`, `title`, `image_url` | not_null (schema) | missing required fields from the source |
