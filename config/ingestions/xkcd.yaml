@@ -15,7 +15,7 @@ raw_xkcd:
   loading:
     id_cols:
       - comic_num
-    batch_size: 100
+    batch_size: 1000
 
   data_quality:
     enabled: true

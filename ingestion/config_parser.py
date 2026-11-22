@@ -31,7 +31,9 @@ class SchemaConfig(StrictConfig):
 
 class LoadingConfig(StrictConfig):
     id_cols: list[str] | None = None
-    batch_size: int = 100
+    # None means no chunking: extract, validate, and publish everything in
+    # one go.
+    batch_size: int | None = None
 
 
 class DataQualityConfig(StrictConfig):
@@ -90,16 +92,16 @@ def load_config(
                 raise ValueError("source.backfill_start must be >= 1")
             if config.source.backfill_start > config.source.backfill_end:
                 raise ValueError("source.backfill_start must be <= source.backfill_end")
-        if config.destination.mode not in {"upsert", "truncate"}:
+        if config.destination.mode != "upsert":
             raise ValueError(f"Unsupported destination mode: {config.destination.mode}")
-        if config.destination.mode == "upsert" and not config.loading.id_cols:
-            raise ValueError("loading.id_cols is required when destination.mode is 'upsert'")
+        if not config.loading.id_cols:
+            raise ValueError("loading.id_cols is required for upsert mode")
+        if config.loading.batch_size is not None and config.loading.batch_size <= 0:
+            raise ValueError("loading.batch_size must be greater than zero")
         if config.schema.mode != "explicit":
             raise ValueError("Currently only schema.mode='explicit' is supported")
         if not config.schema.definition:
             raise ValueError("schema.definition is required for explicit schema mode")
-        if not config.loading.id_cols:
-            raise ValueError("loading.id_cols cannot be empty")
         if len(config.loading.id_cols) != len(set(config.loading.id_cols)):
             raise ValueError("loading.id_cols cannot contain duplicates")
 

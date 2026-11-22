@@ -74,7 +74,7 @@ This overrides `source.mode` to `backfill` for that run only. The end of the ran
 - `destination.mode`: currently `upsert`.
 - `schema.definition`: explicit schema YAML path, relative to the ingestion config file.
 - `loading.id_cols`: one or more columns forming the primary/conflict key.
-- `loading.batch_size`: how many records are extracted, validated, and published together as one chunk. Extraction streams records one at a time rather than loading everything into memory up front, so a failure partway through a large `hist`/`backfill` run only costs the current chunk - earlier chunks are already validated and published (safe to leave in place, since the destination mode is `upsert`).
+- `loading.batch_size`: how many records are extracted, validated, and published together as one chunk. Extraction streams records one at a time rather than loading everything into memory up front, so a failure partway through a large `hist`/`backfill` run only costs the current chunk - earlier chunks are already validated and published (safe to leave in place, since the destination mode is `upsert`). Omit it to disable chunking entirely - everything is extracted, validated, and published in a single pass.
 - `data_quality.expectations`: optional business/data-specific checks beyond schema validation, evaluated per chunk (see [docs/xkcd/data-quality.md](docs/xkcd/data-quality.md) for what that means for checks like `unique`).
 
 ### Transformations (dbt)

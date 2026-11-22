@@ -107,7 +107,7 @@ class PostgresPublisher:
         id_cols: list[str] | None = None,
     ) -> dict:
         """
-        Dispatch records to upsert or truncate publishing.
+        Dispatch records to the publishing mode for this destination.
         """
         id_cols = id_cols or []
 
@@ -122,18 +122,6 @@ class PostgresPublisher:
                 records=records,
                 schema=schema,
                 id_cols=id_cols,
-            )
-
-        if mode == "truncate":
-            if id_cols:
-                raise PublishingError(
-                    "id_cols must not be provided for truncate mode"
-                )
-
-            return self.truncate(
-                table_name=table_name,
-                records=records,
-                schema=schema,
             )
 
         raise PublishingError(
@@ -243,97 +231,4 @@ class PostgresPublisher:
         except Exception as exc:
             raise PublishingError(
                 f"Upsert into '{table_name}' failed: {exc}"
-            ) from exc
-
-    def truncate(
-        self,
-        table_name: str,
-        records: list[dict],
-        schema: dict,
-    ) -> dict:
-        """
-        Load fresh records into a table already reset by reset_table().
-        Called once per chunk - must not itself touch the table's schema, or
-        a multi-chunk run would wipe out every earlier chunk's rows.
-        """
-        if not records:
-            return {"inserted": 0}
-
-        try:
-            columns = [
-                column["name"]
-                for column in schema["columns"]
-            ]
-
-            insert_statement = sql.SQL(
-                "INSERT INTO {} ({}) VALUES ({})"
-            ).format(
-                sql.Identifier(table_name),
-                sql.SQL(", ").join(
-                    sql.Identifier(column)
-                    for column in columns
-                ),
-                sql.SQL(", ").join(
-                    sql.Placeholder()
-                    for _ in columns
-                ),
-            )
-
-            params = [
-                tuple(record[column] for column in columns)
-                for record in records
-            ]
-
-            with self._connect() as conn:
-                with conn.cursor() as cursor:
-                    cursor.executemany(insert_statement, params)
-
-            return {"inserted": len(records)}
-
-        except Exception as exc:
-            raise PublishingError(
-                f"Insert into '{table_name}' failed: {exc}"
-            ) from exc
-
-    def reset_table(self, table_name: str, schema: dict) -> None:
-        """
-        Drop and recreate the destination table, without a primary key.
-        Called once per run, before any chunk is published - truncate() only
-        inserts, so a multi-chunk run doesn't wipe out its own earlier chunks.
-        """
-        try:
-            with self._connect() as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute(
-                        sql.SQL("DROP TABLE IF EXISTS {}").format(
-                            sql.Identifier(table_name)
-                        )
-                    )
-
-                    definitions = []
-
-                    for column in schema["columns"]:
-                        definition = sql.SQL("{} {}{}").format(
-                            sql.Identifier(column["name"]),
-                            sql.SQL(TYPE_MAP[column["data_type"]]),
-                            (
-                                sql.SQL(" NOT NULL")
-                                if not column["nullable"]
-                                else sql.SQL("")
-                            ),
-                        )
-                        definitions.append(definition)
-
-                    create_statement = sql.SQL(
-                        "CREATE TABLE {} ({})"
-                    ).format(
-                        sql.Identifier(table_name),
-                        sql.SQL(", ").join(definitions),
-                    )
-
-                    cursor.execute(create_statement)
-
-        except Exception as exc:
-            raise PublishingError(
-                f"Could not reset table '{table_name}': {exc}"
             ) from exc
