@@ -78,7 +78,9 @@ class PostgresPublisher:
         """
         Retrieve the maximum watermark from the destination table.
 
-        Returns None when the table contains no records.
+        Returns None when the table contains no records, or doesn't exist
+        yet - the very first run, before anything has been ingested. Both
+        mean the same thing: there's nothing to compare against yet.
         """
         try:
             statement = sql.SQL(
@@ -93,6 +95,8 @@ class PostgresPublisher:
                     cursor.execute(statement)
                     return cursor.fetchone()[0]
 
+        except psycopg.errors.UndefinedTable:
+            return None
         except Exception as exc:
             raise PublishingError(
                 f"Could not read watermark from '{table_name}': {exc}"

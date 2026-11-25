@@ -5,6 +5,11 @@ x-airflow-common: &airflow-common
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    # Without a fixed value, each container auto-generates its own random
+    # secret key, so the webserver can't validate the log-fetch token it
+    # gets from the scheduler (LocalExecutor runs tasks there) - that's what
+    # the "403 FORBIDDEN ... /log/..." error in the UI actually is.
+    AIRFLOW__WEBSERVER__SECRET_KEY: "LZrUPtGJ5dBhTHXKFer6ouQ91PU2FgHlsMRQhrj8RBg"
     # Dev/test-only convenience (not constraint-checked against Airflow's own
     # pins) - fine for this local demo, not something to run in production.
     _PIP_ADDITIONAL_REQUIREMENTS: "requests psycopg[binary] pydantic PyYAML python-dotenv dbt-core dbt-postgres"
