@@ -72,6 +72,7 @@ with DAG(
     schedule_interval="0 0 * * MON,WED,FRI",
     start_date=datetime(2024, 1, 1),
     catchup=False,
+    max_active_runs=1,
     tags=["xkcd_analytics"],
 ) as dag:
 
