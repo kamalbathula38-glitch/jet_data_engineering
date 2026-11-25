@@ -86,7 +86,9 @@ cd dbt_project/jet_analytics
 dbt build
 ```
 
-`dbt build` runs the models and all tests in one command, failing loudly if any test fails. This uses your own `~/.dbt/profiles.yml` when run directly on the host, same as any normal dbt project.
+`dbt build` runs the models and all tests in one command, failing loudly if any test fails. It uses the profile committed at `dbt_project/jet_analytics/profiles.yml` (dbt checks the current directory before `~/.dbt/`, so that file is what actually gets used, not any personal profile you may have). Its defaults point at the local Docker warehouse (`localhost:5433`), independently of whatever `DATABASE_URL` is in `.env`.
+
+**If you point `DATABASE_URL` at a different database** (e.g. Neon) for ingestion, `dbt build` on the host won't automatically follow - the two are configured separately. Export matching `DBT_HOST`/`DBT_PORT`/`DBT_USER`/`DBT_PASS`/`DBT_DBNAME` environment variables before running `dbt build` so both tools target the same database, or everything you ingest will land somewhere `dbt build` never looks.
 
 ### Automation (Airflow)
 
@@ -105,7 +107,7 @@ Once it's up:
 1. Open http://localhost:8080 (user `admin`, password `admin`).
 2. Unpause `xkcd_ingestion_pipeline`.
 
-Inside the Airflow containers, `DATABASE_URL` and `DBT_PROFILES_DIR` are set directly in `docker-compose.yaml` to point at the `warehouse` service and `dbt_project/jet_analytics/profiles.yml` - regardless of what's in your own `.env`/`~/.dbt/profiles.yml`. That means triggering the DAG always runs against the local Dockerized warehouse, while running things directly on the host uses whatever you've configured there.
+Inside the Airflow containers, `docker-compose.yaml` sets `DATABASE_URL`, `DBT_HOST`, and `DBT_PORT` directly, pointing both ingestion and dbt at the `warehouse` service - regardless of what's in your own `.env`. That means triggering the DAG always runs against the local Dockerized warehouse, while running things directly on the host uses whatever `DATABASE_URL` and `DBT_HOST`/`DBT_PORT` you've set there (see the note above - keep them in sync).
 
 ## Adding another pipeline
 
